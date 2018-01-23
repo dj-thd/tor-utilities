@@ -1,0 +1,19 @@
+# Optimized settings for tor transparent routing
+
+# Save log
+Log notice file /var/log/tor/notices.log
+
+# Enable access to .onion websites
+VirtualAddrNetwork 10.192.0.0/10
+AutomapHostsSuffixes .onion,.exit
+AutomapHostsOnResolve 1
+
+# Transparent port
+TransPort 0.0.0.0:9040
+
+# Enable DNS
+DNSPort 0.0.0.0:53
+
+# Open control port so can change exit node dynamically
+ControlPort 127.0.0.1:9051
+HashedControlPassword 16:662CB8A84195563160A5A1EBF08B258A5EB711B8DE609A4DA1D1B86C95
