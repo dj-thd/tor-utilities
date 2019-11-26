@@ -14,7 +14,7 @@ LIBEVENT_VERSION=2.1.8-stable
 OPENSSL_VERSION=1.0.2n
 TOR_VERSION=0.3.2.9
 
-apt-get -y install build-essential gcc g++
+apt-get -y install build-essential gcc g++ binutils tar curl
 
 # Dirty functions but working
 
@@ -25,17 +25,17 @@ function getLatestZlib() {
 
 function getLatestLibEvent() {
 	echo Getting latest libevent version... >&2
-	curl -fsSL https://github.com/libevent/libevent/releases | grep 'Label--latest' -A 7 | grep '/tree/' | egrep -o 'release-[^"]+' | cut -b9-
+	curl -fsSL https://github.com/libevent/libevent/releases/latest | grep 'libevent/libevent/releases/tag/' | grep 'release-' | egrep -o 'release-[^"''&]+' | head -n1 | cut -b9-
 }
 
 function getLatestOpenSSL() {
 	echo Getting latest openssl version... >&2
-	curl -fsSL https://www.openssl.org/source | grep td | grep '<a' | grep -m 1 openssl- | egrep -m 1 -o 'openssl-[^"]+?\.tar.gz' | tail -n1 | cut -b9- | egrep -o '[^\.]+\.[^\.]+\.[^\.]+'
+	curl -fsSL https://www.openssl.org/source | grep td | grep '<a' | grep -m 1 openssl- | egrep -m 1 -o 'openssl-[^"''&]+?\.tar\.gz' | tail -n1 | cut -b9- | egrep -o '[^\.]+\.[^\.]+\.[^\.]+'
 }
 
 function getLatestTor() {
 	echo Getting latest tor version... >&2
-	curl -fsSL https://www.torproject.org | grep button | grep dist/ | grep Download | grep 'Source Code'
+	curl -fsSL https://dist.torproject.org/ | egrep -o 'tor-[0-9\.]+\.tar.gz' | sort | tail -n1 | egrep -o '[0-9\.]+' | sed 's/[^0-9]$//g'
 }
 
 # Get latest versions
@@ -44,6 +44,19 @@ LATEST_ZLIB="$(getLatestZlib)"
 LATEST_LIBEVENT="$(getLatestLibEvent)"
 LATEST_OPENSSL="$(getLatestOpenSSL)"
 LATEST_TOR="$(getLatestTor)"
+
+if [ -z "$LATEST_ZLIB" ]; then
+	echo "WARNING: Could not get latest zlib version"
+fi
+if [ -z "$LATEST_LIBEVENT" ]; then
+	echo "WARNING: Could not get latest libevent version"
+fi
+if [ -z "$LATEST_OPENSSL" ]; then
+	echo "WARNING: Could not get latest openssl version"
+fi
+if [ -z "$LATEST_TOR" ]; then
+	echo "WARNING: Could not get latest tor version"
+fi
 
 # Check if the script version is different for each package (TODO: write a function to do this instead of copypasted code)
 
@@ -83,6 +96,8 @@ if [ "$LATEST_TOR" != "$TOR_VERSION" ] && [ -n "$LATEST_TOR" ]; then
 	fi
 fi
 
+ROOTDIR="$(pwd)"
+
 # ZLIB download and compile
 
 # Ask user to not overwrite zlib if existing (TODO: write a function to do this instead of copypasted code)
@@ -107,7 +122,7 @@ if [ -z "$SKIP_ZLIB" ]; then
 	./configure --prefix=$PWD/install
 	make -j$(nproc)
 	make install
-	cd ../..
+	cd "$ROOTDIR"
 fi
 
 
@@ -135,7 +150,7 @@ if [ -z "$SKIP_LIBEVENT" ]; then
 	./configure --prefix=$PWD/install --disable-shared --enable-static --with-pic
 	make -j$(nproc)
 	make install
-	cd ../..
+	cd "$ROOTDIR"
 fi
 
 
@@ -163,7 +178,7 @@ if [ -z "$SKIP_OPENSSL" ]; then
 	./config --prefix=$PWD/install no-shared no-dso
 	make -j$(nproc)
 	make install
-	cd ../..
+	cd "$ROOTDIR"
 fi
 
 
@@ -186,7 +201,7 @@ fi
 
 if [ -z "$SKIP_TOR" ]; then
 	echo Downloading and compiling tor...
-	mkdir tor && cd tor && curl -fsSL https://www.torproject.org/dist/tor-$TOR_VERSION.tar.gz | tar xzvf -
+	mkdir tor && cd tor && curl -fsSL https://dist.torproject.org/tor-$TOR_VERSION.tar.gz | tar xzvf -
 	cd tor-$TOR_VERSION
 	./configure --prefix=$PWD/install --enable-static-tor \
 		--with-libevent-dir=$PWD/../../libevent/libevent-$LIBEVENT_VERSION/install \
@@ -194,8 +209,10 @@ if [ -z "$SKIP_TOR" ]; then
 		--with-zlib-dir=$PWD/../../zlib/zlib-$ZLIB_VERSION/install
 	make -j$(nproc)
 	make install
-	cd ../..
+	cd "$ROOTDIR"
 fi
 
 echo Done.
 echo Your Tor static binaries are located at tor/tor-$TOR_VERSION/install/bin
+
+
